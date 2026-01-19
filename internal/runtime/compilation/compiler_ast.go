@@ -8,9 +8,7 @@ import (
 	"github.com/dunooo0ooo/lang/internal/token"
 )
 
-// CompileProgram компилирует Program (Items) в bytecode.Module.
 func (c *Compiler) CompileProgram(p *ast.Program) (*bytecode.Module, error) {
-	// register functions
 	for _, it := range p.Items {
 		fn, ok := it.(*ast.FnDecl)
 		if !ok {
@@ -35,7 +33,6 @@ func (c *Compiler) CompileProgram(p *ast.Program) (*bytecode.Module, error) {
 		c.mod.Functions[bfn.Name] = bfn
 	}
 
-	// compile bodies
 	for _, it := range p.Items {
 		fn, ok := it.(*ast.FnDecl)
 		if !ok {
@@ -53,7 +50,6 @@ func mapTypeRef(t *ast.TypeRef) bytecode.TypeKind {
 	if t == nil {
 		return bytecode.TypeVoid
 	}
-	// array type: Name == "array" in your parser
 	if t.Name == "array" {
 		return bytecode.TypeArray
 	}
@@ -89,21 +85,18 @@ func (c *Compiler) compileFunction(fn *ast.FnDecl) error {
 	bfn.Chunk = bytecode.Chunk{}
 	bfn.NumLocals = 0
 
-	// params are locals [0..ParamCount)
 	for _, p := range fn.Params {
 		c.addLocal(p.Name, mapTypeRef(&p.Type))
 	}
 
 	c.compileBlock(fn.Body, false)
 
-	// implicit return null
 	c.emitNull()
 	c.chunk().Write(bytecode.OpReturn)
 
 	return nil
 }
 
-// asExpr=true => block must leave value on stack (tail or null)
 func (c *Compiler) compileBlock(b *ast.BlockStmt, asExpr bool) {
 	for _, st := range b.Stmts {
 		c.compileStmt(st)
@@ -262,7 +255,6 @@ func (c *Compiler) compileFor(s *ast.ForStmt) {
 	loopStart := len(ch.Code)
 	c.beginLoop()
 
-	// cond
 	hasCond := s.Cond != nil
 	if hasCond {
 		c.compileExpr(s.Cond)
@@ -293,7 +285,6 @@ func (c *Compiler) compileFor(s *ast.ForStmt) {
 		return
 	}
 
-	// no cond => infinite loop
 	c.compileBlock(s.Body, false)
 
 	continueTarget := loopStart
@@ -327,7 +318,6 @@ func (c *Compiler) compileExpr(e ast.Expr) {
 		c.emitString(ex.Value)
 
 	case *ast.CharLit:
-		// предполагаем, что Raw = "a" без кавычек (как у тебя сейчас)
 		var b byte
 		if len(ex.Raw) > 0 {
 			b = ex.Raw[0]
@@ -378,7 +368,6 @@ func (c *Compiler) compileBinary(e *ast.BinaryExpr) {
 
 	switch e.Op {
 	case token.AND:
-		// short-circuit: left && right
 		c.compileExpr(e.L)
 
 		ch.Write(bytecode.OpJumpIfFalse)
@@ -393,7 +382,6 @@ func (c *Compiler) compileBinary(e *ast.BinaryExpr) {
 		return
 
 	case token.OR:
-		// short-circuit: left || right
 		c.compileExpr(e.L)
 
 		ch.Write(bytecode.OpJumpIfFalse)
@@ -415,7 +403,6 @@ func (c *Compiler) compileBinary(e *ast.BinaryExpr) {
 		return
 	}
 
-	// normal binary
 	c.compileExpr(e.L)
 	c.compileExpr(e.R)
 
@@ -459,7 +446,7 @@ func (c *Compiler) compileIfExpr(e *ast.IfExpr) {
 	ch.WriteUint16(0)
 
 	ch.Write(bytecode.OpPop)
-	c.compileBlock(e.Then, true) // leaves value
+	c.compileBlock(e.Then, true)
 
 	ch.Write(bytecode.OpJump)
 	jumpAfterElse := len(ch.Code)
@@ -469,7 +456,7 @@ func (c *Compiler) compileIfExpr(e *ast.IfExpr) {
 	_ = ch.PatchUint16(jumpToElse, uint16(elsePos))
 
 	ch.Write(bytecode.OpPop)
-	c.compileExpr(e.Else) // leaves value
+	c.compileExpr(e.Else)
 
 	endPos := len(ch.Code)
 	_ = ch.PatchUint16(jumpAfterElse, uint16(endPos))
@@ -517,7 +504,6 @@ func (c *Compiler) compileIdent(e *ast.VarRef) {
 	panic("unknown variable: " + e.Name)
 }
 
-// Array literal: len -> OpArrayNew -> tmp local -> fill via OpArraySet -> load tmp
 func (c *Compiler) compileArrayLit(a *ast.ArrayLit) {
 	ch := c.chunk()
 
@@ -540,8 +526,6 @@ func (c *Compiler) compileArrayLit(a *ast.ArrayLit) {
 	ch.Write(bytecode.OpLoadLocal)
 	_ = ch.WriteByte(byte(tmpSlot))
 }
-
-// ---- constants helpers ----
 
 func (c *Compiler) emitInt(v int64) {
 	ch := c.chunk()
@@ -584,8 +568,6 @@ func (c *Compiler) emitNull() {
 	idx := ch.AddConstant(bytecode.Value{Kind: bytecode.ValNull})
 	ch.WriteUint16(uint16(idx))
 }
-
-// ---- loops: break/continue support (use your existing stacks) ----
 
 func (c *Compiler) beginLoop() {
 	c.breakStack = append(c.breakStack, nil)

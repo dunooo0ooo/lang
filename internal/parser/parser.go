@@ -144,7 +144,6 @@ func (p *Parser) parseBlockStmt() *ast.BlockStmt {
 	var tail ast.Expr
 
 	for p.cur.Type != token.RBRACE && p.cur.Type != token.EOF {
-		// 1) сначала обрабатываем "явные statement" по ключевым словам
 		switch p.cur.Type {
 		case token.LBRACE, token.LET, token.RETURN, token.IF, token.WHILE, token.FOR:
 			s := p.parseStmt()
@@ -156,7 +155,6 @@ func (p *Parser) parseBlockStmt() *ast.BlockStmt {
 			continue
 		}
 
-		// 2) assignment-statement (IDENT '=' ...)
 		if p.cur.Type == token.IDENT && p.peek.Type == token.ASSIGN {
 			s := p.parseExprOrAssignStmt()
 			if s != nil {
@@ -167,7 +165,6 @@ func (p *Parser) parseBlockStmt() *ast.BlockStmt {
 			continue
 		}
 
-		// 3) иначе это expression: либо ExprStmt (с ';'), либо tail expr (без ';' перед '}')
 		if p.startsExpr(p.cur.Type) {
 			exprPos := p.cur.Pos
 			x := p.parseExpr(precLowest)

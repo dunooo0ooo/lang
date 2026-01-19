@@ -148,20 +148,15 @@ fn main() -> int {
 
 	vm := runtime.NewVM(mod, false)
 
-	// Чтобы гарантированно триггерить GC почаще:
-	// (тест в package e2e_test, поэтому MaxObjects не виден — оставь как есть)
 	ret, err := vm.Call("main", nil)
 	if err != nil {
 		t.Fatalf("vm call error: %v", err)
 	}
 
-	// 200 итераций * a[0]=1 => 200
 	if ret.Kind != bytecode.ValInt || ret.I != 200 {
 		t.Fatalf("unexpected result: %#v, want int 200", ret)
 	}
 }
-
-// ---- helpers ----
 
 func mustParse(t *testing.T, src string) *ast.Program {
 	t.Helper()

@@ -33,7 +33,6 @@ fn f(a: int, b: int) -> int {
 		t.Fatalf("resolver errors: %v", r.Errors())
 	}
 
-	// sanity: should have 1 function resolved
 	if len(r.Result().Fns) != 1 {
 		t.Fatalf("expected 1 function, got %d", len(r.Result().Fns))
 	}
