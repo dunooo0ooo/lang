@@ -36,6 +36,10 @@ func (c *Compiler) Module() *bytecode.Module {
 
 func (c *Compiler) addLocal(name string, typ bytecode.TypeKind) int {
 	slot := len(c.locals)
+	if slot >= 256 {
+		panic("too many locals (max 256)")
+	}
+
 	c.locals = append(c.locals, localVar{name: name, slot: slot, typ: typ})
 
 	if c.fn != nil && slot+1 > c.fn.NumLocals {

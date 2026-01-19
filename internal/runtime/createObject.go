@@ -8,7 +8,7 @@ func (vm *VM) newObject(t bytecode.ObjectType) *bytecode.Object {
 	}
 
 	if vm.heap.NumObjects >= vm.heap.MaxObjects {
-		// TODO vm.gc() тут допиливаем гцшник
+		vm.gc()
 	}
 
 	obj := &bytecode.Object{
