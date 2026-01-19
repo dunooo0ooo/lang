@@ -476,6 +476,53 @@ func (c *Compiler) compileCall(e *ast.CallExpr) {
 
 	name := id.Name
 
+	if name == "println" {
+		if len(e.Args) != 1 {
+			panic("println expects exactly 1 argument")
+		}
+		c.compileExpr(e.Args[0])
+		ch.Write(bytecode.OpPrintLn)
+		ch.Write(bytecode.OpConst)
+		idx := ch.AddConstant(bytecode.Value{Kind: bytecode.ValNull})
+		ch.WriteUint16(uint16(idx))
+		return
+	}
+	// builtins
+	if name == "array" {
+		if len(e.Args) != 1 {
+			panic("array expects exactly 1 argument")
+		}
+		c.compileExpr(e.Args[0]) // length
+		ch.Write(bytecode.OpArrayNew)
+		return
+	}
+
+	if name == "get" {
+		if len(e.Args) != 2 {
+			panic("get expects exactly 2 arguments")
+		}
+		c.compileExpr(e.Args[0]) // array
+		c.compileExpr(e.Args[1]) // index
+		ch.Write(bytecode.OpArrayGet)
+		return
+	}
+
+	if name == "set" {
+		if len(e.Args) != 3 {
+			panic("set expects exactly 3 arguments")
+		}
+		c.compileExpr(e.Args[0]) // array
+		c.compileExpr(e.Args[1]) // index
+		c.compileExpr(e.Args[2]) // value
+		ch.Write(bytecode.OpArraySet)
+
+		// set(...) как выражение должен вернуть что-то: вернём null
+		ch.Write(bytecode.OpConst)
+		idx := ch.AddConstant(bytecode.Value{Kind: bytecode.ValNull})
+		ch.WriteUint16(uint16(idx))
+		return
+	}
+
 	if name == "print" {
 		if len(e.Args) != 1 {
 			panic("print expects exactly 1 argument")

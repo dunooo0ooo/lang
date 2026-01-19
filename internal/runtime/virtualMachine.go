@@ -253,7 +253,10 @@ func (vm *VM) runFunction(fn *bytecode.FunctionInfo, args []bytecode.Value) (byt
 		case bytecode.OpPrint:
 			v := pop()
 			fmt.Print(formatValue(v) + " ")
-
+		case bytecode.OpPrintLn:
+			v := pop()
+			fmt.Println(formatValue(v))
+			push(bytecode.Value{Kind: bytecode.ValNull})
 		case bytecode.OpReturn:
 			if len(stack) == 0 {
 				return bytecode.Value{Kind: bytecode.ValNull}, nil

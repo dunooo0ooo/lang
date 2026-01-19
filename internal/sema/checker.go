@@ -417,6 +417,100 @@ func (c *Checker) checkCall(call *ast.CallExpr) Type {
 		return T(bytecode.TypeInvalid)
 	}
 
+	if vr.Name == "println" {
+		if len(call.Args) != 1 {
+			c.errorf(call.Pos(), "println expects 1 argument")
+			for _, a := range call.Args {
+				_ = c.checkExpr(a)
+			}
+			return T(bytecode.TypeVoid)
+		}
+		_ = c.checkExpr(call.Args[0])
+		return T(bytecode.TypeVoid)
+	}
+
+	switch vr.Name {
+	case "array":
+		if len(call.Args) != 1 {
+			c.errorf(call.Pos(), "function %q expects %d args, got %d", vr.Name, 1, len(call.Args))
+			for _, a := range call.Args {
+				_ = c.checkExpr(a)
+			}
+			return Arr(T(bytecode.TypeInt))
+		}
+		t0 := c.checkExpr(call.Args[0])
+		if t0.Kind != bytecode.TypeInt && t0.Kind != bytecode.TypeInvalid {
+			c.errorf(call.Args[0].Pos(), "array(len): len must be int, got %s", t0)
+			return T(bytecode.TypeInvalid)
+		}
+		return Arr(T(bytecode.TypeInt))
+	case "print":
+		if len(call.Args) != 1 {
+			c.errorf(call.Pos(), "function %q expects %d args, got %d", vr.Name, 1, len(call.Args))
+			for _, a := range call.Args {
+				_ = c.checkExpr(a)
+			}
+			return T(bytecode.TypeVoid)
+		}
+
+		argTy := c.checkExpr(call.Args[0])
+		if argTy.Kind == bytecode.TypeVoid {
+			c.errorf(call.Args[0].Pos(), "cannot print void")
+			return T(bytecode.TypeInvalid)
+		}
+
+		return T(bytecode.TypeVoid)
+
+	case "get":
+		if len(call.Args) != 2 {
+			c.errorf(call.Pos(), "function %q expects %d args, got %d", vr.Name, 2, len(call.Args))
+			for _, a := range call.Args {
+				_ = c.checkExpr(a)
+			}
+			return T(bytecode.TypeInt)
+		}
+
+		tArr := c.checkExpr(call.Args[0])
+		tIdx := c.checkExpr(call.Args[1])
+
+		if !tArr.IsArray() || tArr.Elem == nil || tArr.Elem.Kind != bytecode.TypeInt {
+			c.errorf(call.Args[0].Pos(), "get(arr, i): arr must be []int, got %s", tArr)
+			return T(bytecode.TypeInvalid)
+		}
+		if tIdx.Kind != bytecode.TypeInt && tIdx.Kind != bytecode.TypeInvalid {
+			c.errorf(call.Args[1].Pos(), "get(arr, i): i must be int, got %s", tIdx)
+			return T(bytecode.TypeInvalid)
+		}
+		return T(bytecode.TypeInt)
+
+	case "set":
+		if len(call.Args) != 3 {
+			c.errorf(call.Pos(), "function %q expects %d args, got %d", vr.Name, 3, len(call.Args))
+			for _, a := range call.Args {
+				_ = c.checkExpr(a)
+			}
+			return T(bytecode.TypeVoid)
+		}
+
+		tArr := c.checkExpr(call.Args[0])
+		tIdx := c.checkExpr(call.Args[1])
+		tVal := c.checkExpr(call.Args[2])
+
+		if !tArr.IsArray() || tArr.Elem == nil || tArr.Elem.Kind != bytecode.TypeInt {
+			c.errorf(call.Args[0].Pos(), "set(arr, i, v): arr must be []int, got %s", tArr)
+			return T(bytecode.TypeInvalid)
+		}
+		if tIdx.Kind != bytecode.TypeInt && tIdx.Kind != bytecode.TypeInvalid {
+			c.errorf(call.Args[1].Pos(), "set(arr, i, v): i must be int, got %s", tIdx)
+			return T(bytecode.TypeInvalid)
+		}
+		if tVal.Kind != bytecode.TypeInt && tVal.Kind != bytecode.TypeInvalid {
+			c.errorf(call.Args[2].Pos(), "set(arr, i, v): v must be int, got %s", tVal)
+			return T(bytecode.TypeInvalid)
+		}
+		return T(bytecode.TypeVoid)
+	}
+
 	sym, ok := c.scope.Lookup(vr.Name)
 	if !ok || sym.Kind != SymFn {
 		c.errorf(vr.NamePos, "undefined function %q", vr.Name)

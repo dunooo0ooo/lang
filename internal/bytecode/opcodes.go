@@ -37,4 +37,5 @@ const (
 	OpArraySwapJit
 
 	OpPrint
+	OpPrintLn
 )

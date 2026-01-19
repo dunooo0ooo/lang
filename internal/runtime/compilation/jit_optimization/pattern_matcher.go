@@ -94,9 +94,9 @@ func DetectSwapPattern(code []byte, start int) (bool, []byte, int) {
 	}
 
 	// Валидация паттерна
-	if skipAddress < 0 || skipAddress >= len(code) || 
-	   bytecode.OpCode(code[skipAddress]) != bytecode.OpPop || 
-	   endAddress != skipAddress+1 {
+	if skipAddress < 0 || skipAddress >= len(code) ||
+		bytecode.OpCode(code[skipAddress]) != bytecode.OpPop ||
+		endAddress != skipAddress+1 {
 		return false, nil, 0
 	}
 
@@ -107,10 +107,10 @@ func DetectSwapPattern(code []byte, start int) (bool, []byte, int) {
 		byte(bytecode.OpArraySwapJit),
 	}
 
-	patternLength := endAddress - start
-	if patternLength <= 0 {
+	patternLength := reader.IP() - start
+	if patternLength <= 0 || start+patternLength > len(code) {
 		return false, nil, 0
 	}
-	
+
 	return true, optimizedCode, patternLength
 }

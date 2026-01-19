@@ -28,3 +28,5 @@ func (r *CodeReader) ExpectArgument(opCode bytecode.OpCode) (int, bool) {
 	}
 	return instr.Argument, true
 }
+
+func (r *CodeReader) IP() int { return r.ip }
