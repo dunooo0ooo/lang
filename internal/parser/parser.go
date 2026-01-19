@@ -141,17 +141,77 @@ func (p *Parser) parseBlockStmt() *ast.BlockStmt {
 	p.expect(token.LBRACE)
 
 	var stmts []ast.Stmt
+	var tail ast.Expr
+
 	for p.cur.Type != token.RBRACE && p.cur.Type != token.EOF {
-		s := p.parseStmt()
-		if s != nil {
-			stmts = append(stmts, s)
+		// 1) сначала обрабатываем "явные statement" по ключевым словам
+		switch p.cur.Type {
+		case token.LBRACE, token.LET, token.RETURN, token.IF, token.WHILE, token.FOR:
+			s := p.parseStmt()
+			if s != nil {
+				stmts = append(stmts, s)
+			} else {
+				p.advance()
+			}
 			continue
 		}
+
+		// 2) assignment-statement (IDENT '=' ...)
+		if p.cur.Type == token.IDENT && p.peek.Type == token.ASSIGN {
+			s := p.parseExprOrAssignStmt()
+			if s != nil {
+				stmts = append(stmts, s)
+			} else {
+				p.advance()
+			}
+			continue
+		}
+
+		// 3) иначе это expression: либо ExprStmt (с ';'), либо tail expr (без ';' перед '}')
+		if p.startsExpr(p.cur.Type) {
+			exprPos := p.cur.Pos
+			x := p.parseExpr(precLowest)
+
+			if p.cur.Type == token.SEMICOLON {
+				p.advance()
+				stmts = append(stmts, &ast.ExprStmt{ExprPos: exprPos, X: x})
+				continue
+			}
+
+			if p.cur.Type == token.RBRACE {
+				tail = x
+				break
+			}
+
+			p.errorf(p.cur.Pos, "expected ';' or '}', got %v", p.cur.Type)
+			if p.cur.Type != token.EOF {
+				p.advance()
+			}
+			continue
+		}
+
+		p.errorf(p.cur.Pos, "unexpected token in block: %v", p.cur.Type)
 		p.advance()
 	}
 
 	p.expect(token.RBRACE)
-	return &ast.BlockStmt{Lbrace: lb, Stmts: stmts}
+	return &ast.BlockStmt{Lbrace: lb, Stmts: stmts, Tail: tail}
+}
+
+func (p *Parser) startsExpr(t token.Type) bool {
+	switch t {
+	case token.INT, token.FLOAT, token.STRING, token.CHAR, token.NULL,
+		token.TRUE, token.FALSE,
+		token.IDENT,
+		token.MINUS, token.BANG,
+		token.LPAREN,
+		token.LBRACE,
+		token.IF,
+		token.LBRACKET:
+		return true
+	default:
+		return false
+	}
 }
 
 func (p *Parser) parseLetStmt(withSemi bool) *ast.LetStmt {
