@@ -53,6 +53,7 @@ type Stmt interface {
 type BlockStmt struct {
 	Lbrace token.Position
 	Stmts  []Stmt
+	Tail   Expr
 }
 
 func (s *BlockStmt) Pos() token.Position { return s.Lbrace }

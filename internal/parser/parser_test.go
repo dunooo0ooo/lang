@@ -112,6 +112,15 @@ fn f() -> int {
 }
 `,
 		},
+		{
+			name: "block tail expr",
+			src: `
+fn f() -> int {
+    let x: int = { let y: int = 2; y + 3 };
+    return x;
+}
+`,
+		},
 	}
 
 	for _, tt := range tests {
