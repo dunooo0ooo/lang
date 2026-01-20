@@ -250,12 +250,34 @@ func (vm *VM) runFunction(fn *bytecode.FunctionInfo, args []bytecode.Value) (byt
 				return bytecode.Value{}, err
 			}
 			push(ret)
+
 		case bytecode.OpPrint:
 			v := pop()
 			fmt.Print(formatValue(v) + " ")
+			push(bytecode.Value{Kind: bytecode.ValNull})
+
 		case bytecode.OpPrintLn:
 			v := pop()
 			fmt.Println(formatValue(v))
+			push(bytecode.Value{Kind: bytecode.ValNull})
+
+		case bytecode.OpArraySet:
+			val := pop()
+			idxVal := pop()
+			arrVal := pop()
+
+			if arrVal.Kind != bytecode.ValObject || arrVal.Obj == nil || arrVal.Obj.Type != bytecode.ObjArray {
+				return bytecode.Value{}, fmt.Errorf("array set: value is not array")
+			}
+			if idxVal.Kind != bytecode.ValInt {
+				return bytecode.Value{}, fmt.Errorf("array set: index must be int")
+			}
+			idx := int(idxVal.I)
+			if idx < 0 || idx >= len(arrVal.Obj.Items) {
+				return bytecode.Value{}, fmt.Errorf("array set: index %d out of range [0,%d)", idx, len(arrVal.Obj.Items))
+			}
+			arrVal.Obj.Items[idx] = val
+
 			push(bytecode.Value{Kind: bytecode.ValNull})
 		case bytecode.OpReturn:
 			if len(stack) == 0 {
@@ -298,24 +320,6 @@ func (vm *VM) runFunction(fn *bytecode.FunctionInfo, args []bytecode.Value) (byt
 
 			push(arrVal.Obj.Items[idx])
 
-		case bytecode.OpArraySet:
-			val := pop()
-			idxVal := pop()
-			arrVal := pop()
-
-			if arrVal.Kind != bytecode.ValObject || arrVal.Obj == nil || arrVal.Obj.Type != bytecode.ObjArray {
-				return bytecode.Value{}, fmt.Errorf("array set: value is not array")
-			}
-			if idxVal.Kind != bytecode.ValInt {
-				return bytecode.Value{}, fmt.Errorf("array set: index must be int")
-			}
-			idx := int(idxVal.I)
-			if idx < 0 || idx >= len(arrVal.Obj.Items) {
-				return bytecode.Value{}, fmt.Errorf("array set: index %d out of range [0,%d)", idx, len(arrVal.Obj.Items))
-			}
-
-			arrVal.Obj.Items[idx] = val
-
 		case bytecode.OpArraySwapJit:
 			idxVal := pop()
 			arrVal := pop()
@@ -329,14 +333,12 @@ func (vm *VM) runFunction(fn *bytecode.FunctionInfo, args []bytecode.Value) (byt
 
 			j := int(idxVal.I)
 			items := arrVal.Obj.Items
-
 			if j < 0 || j+1 >= len(items) {
 				return bytecode.Value{}, fmt.Errorf("array swap: index %d out of range", j)
 			}
 
 			a := items[j]
 			b := items[j+1]
-
 			if a.Kind != bytecode.ValInt || b.Kind != bytecode.ValInt {
 				return bytecode.Value{}, fmt.Errorf("array swap: non-int elements")
 			}
@@ -345,6 +347,8 @@ func (vm *VM) runFunction(fn *bytecode.FunctionInfo, args []bytecode.Value) (byt
 				items[j] = b
 				items[j+1] = a
 			}
+
+			push(bytecode.Value{Kind: bytecode.ValNull})
 
 		default:
 			return bytecode.Value{}, fmt.Errorf("unknown opcode %d", op)

@@ -127,9 +127,15 @@ func (c *Compiler) compileStmt(s ast.Stmt) {
 		c.compileAssign(st)
 
 	case *ast.ExprStmt:
+		if call, ok := st.X.(*ast.CallExpr); ok {
+			if id, ok := call.Callee.(*ast.VarRef); ok && id.Name == "set" {
+				c.compileExpr(st.X)
+				return
+			}
+		}
+
 		c.compileExpr(st.X)
 		c.chunk().Write(bytecode.OpPop)
-
 	case *ast.ReturnStmt:
 		c.compileReturn(st)
 
@@ -467,71 +473,58 @@ func (c *Compiler) compileCall(e *ast.CallExpr) {
 
 	id, ok := e.Callee.(*ast.VarRef)
 	if !ok {
-		panic("call of non-identifier is not supported")
+		panic("call target must be identifier")
+	}
+	name := id.Name
+
+	switch name {
+	case "println":
+		if len(e.Args) != 1 {
+			panic(fmt.Sprintf("println expects 1 argument, got %d", len(e.Args)))
+		}
+		c.compileExpr(e.Args[0])
+		ch.Write(bytecode.OpPrintLn)
+		return
+
+	case "print":
+		if len(e.Args) != 1 {
+			panic(fmt.Sprintf("print expects 1 argument, got %d", len(e.Args)))
+		}
+		c.compileExpr(e.Args[0])
+		ch.Write(bytecode.OpPrint)
+		return
+
+	case "array":
+		if len(e.Args) != 1 {
+			panic(fmt.Sprintf("array expects 1 argument, got %d", len(e.Args)))
+		}
+		c.compileExpr(e.Args[0])
+		ch.Write(bytecode.OpArrayNew)
+		return
+
+	case "get":
+		if len(e.Args) != 2 {
+			panic(fmt.Sprintf("get expects 2 arguments, got %d", len(e.Args)))
+		}
+		c.compileExpr(e.Args[0])
+		c.compileExpr(e.Args[1])
+		ch.Write(bytecode.OpArrayGet)
+		return
+
+	case "set":
+		if len(e.Args) != 3 {
+			panic(fmt.Sprintf("set expects 3 arguments, got %d", len(e.Args)))
+		}
+		c.compileExpr(e.Args[0])
+		c.compileExpr(e.Args[1])
+		c.compileExpr(e.Args[2])
+		ch.Write(bytecode.OpArraySet)
+		return
 	}
 
 	for _, arg := range e.Args {
 		c.compileExpr(arg)
 	}
-
-	name := id.Name
-
-	if name == "println" {
-		if len(e.Args) != 1 {
-			panic("println expects exactly 1 argument")
-		}
-		c.compileExpr(e.Args[0])
-		ch.Write(bytecode.OpPrintLn)
-		ch.Write(bytecode.OpConst)
-		idx := ch.AddConstant(bytecode.Value{Kind: bytecode.ValNull})
-		ch.WriteUint16(uint16(idx))
-		return
-	}
-	// builtins
-	if name == "array" {
-		if len(e.Args) != 1 {
-			panic("array expects exactly 1 argument")
-		}
-		c.compileExpr(e.Args[0]) // length
-		ch.Write(bytecode.OpArrayNew)
-		return
-	}
-
-	if name == "get" {
-		if len(e.Args) != 2 {
-			panic("get expects exactly 2 arguments")
-		}
-		c.compileExpr(e.Args[0]) // array
-		c.compileExpr(e.Args[1]) // index
-		ch.Write(bytecode.OpArrayGet)
-		return
-	}
-
-	if name == "set" {
-		if len(e.Args) != 3 {
-			panic("set expects exactly 3 arguments")
-		}
-		c.compileExpr(e.Args[0]) // array
-		c.compileExpr(e.Args[1]) // index
-		c.compileExpr(e.Args[2]) // value
-		ch.Write(bytecode.OpArraySet)
-
-		// set(...) как выражение должен вернуть что-то: вернём null
-		ch.Write(bytecode.OpConst)
-		idx := ch.AddConstant(bytecode.Value{Kind: bytecode.ValNull})
-		ch.WriteUint16(uint16(idx))
-		return
-	}
-
-	if name == "print" {
-		if len(e.Args) != 1 {
-			panic("print expects exactly 1 argument")
-		}
-		ch.Write(bytecode.OpPrint)
-		c.emitNull()
-		return
-	}
-
 	if _, ok := c.mod.Functions[name]; !ok {
 		panic("unknown function: " + name)
 	}

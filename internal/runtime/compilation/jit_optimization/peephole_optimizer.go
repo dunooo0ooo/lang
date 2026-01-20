@@ -1,6 +1,8 @@
 package jit_optimization
 
-import "github.com/dunooo0ooo/lang/internal/bytecode"
+import (
+	"github.com/dunooo0ooo/lang/internal/bytecode"
+)
 
 func OptimizePeephole(fn *bytecode.FunctionInfo) {
 	chunk := &fn.Chunk
